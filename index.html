@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Power Plants in the United States (2014)</title>
+    	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css"/>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <style>
+ 	html, body, #map { width: 100%; height: 100%; margin: 0; background: #fff; }
+
+   .legend {
+    line-height: 40px;
+    font-size: 16px;
+    width: 190px;
+    color: #333333;
+    padding: 6px 8px;
+    background: white;
+    background: rgba(255,255,255,0.5);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+ 
+.legend i {
+    width: 20px;
+    height: 20px;
+    float: left;
+    margin-right: 8px;
+    opacity: 0.9;
+}
+ 
+.legend img {
+    width: 16px;
+    height: 16px;
+    margin-right: 3px;
+    float: left;
+}
+ 
+.legend p {
+    font-size: 14px;
+    line-height: 20px;
+    margin: 0;
+}
+
+.legend {
+
+font-family: 'Electrolize', sans-serif;
+
+}
+
+    </style>
+    	<link href="https://fonts.googleapis.com/css?family=Titillium+Web" rel="stylesheet">
+        <link rel="stylesheet"
+  href="https://fonts.googleapis.com/css?family=Electrolize">
+	<script src="https://unpkg.com/leaflet@1.7.0/dist/leaflet.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/1.3.4/chroma.min.js"></script>
+
+</head>
+<body>
+<!-- web map content -->
+<div id="map"></div>
+<script>
+ // map obj
+var mymap = L.map('map', {
+    center: [37.8, -96], 
+    zoom: 5, 
+    detectRetina: true // detect whether the screen is high resolution or not
+});
+ 
+// base map
+var CartoDB_DarkMatterNoLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+	subdomains: 'abcd',
+	maxZoom: 20
+}).addTo(mymap);
+
+var powerplants = null;
+
+
+
+var colors = chroma.scale('Dark2').mode('lch').colors(8);
+
+// loop for style classes to shade the markers
+for (i = 0; i < 8; i++) {
+    $('head').append($("<style> .marker-color-" + (i + 1).toString() + " { color: " + colors[i] + "; font-size: 15px; text-shadow: 0 0 3px #ffffff;} </style>"));
+}
+
+powerplants = L.geoJson.ajax("assets/powerplants.geojson",{
+
+//point popup windows
+  onEachFeature: function (feature, layer) {
+      layer.bindPopup("Type and Output: " + feature.properties.capacity_b + "<p>Power Plant Name: " + feature.properties.plant_name + "<p>Owner: " + feature.properties.utility_na);
+  },
+
+pointToLayer: function(feature, latlng) {
+  var id = 0;
+  if (feature.properties.power2_type == "Natural Gas") { id = 0; }
+  else if (feature.properties.power2_type == "Wind")  { id = 1; }
+  else if (feature.properties.power2_type == "Hydro") { id = 2; }
+  else if (feature.properties.power2_type == "Petroleum") { id = 3; }
+  else if (feature.properties.power2_type == "Biomass") { id = 4; }
+  else if (feature.properties.power2_type == "Solar") { id = 5; }
+  else if (feature.properties.power2_type == "Coal") { id = 6; }
+  else { id = 7;} //all other
+  return L.marker(latlng, {icon: L.divIcon({className: 'fa fa-bolt marker-color-' + (id + 1).toString() })});
+},
+
+  attribution: '| Power Plants Data &copy; Princeton University | Base Map &copy; CartoDB | Map Author: Franclyn Nemargut'
+});
+
+powerplants.addTo(mymap);
+
+
+colors = chroma.scale('Blues').colors(5);
+ 
+//legend classes
+function setColor(density) {
+    var id = 0;
+    if (density > 192) { id = 4; } 
+    else if (density > 121 && density <= 191) { id = 3; } 
+    else if (density > 80 && density <= 121) { id = 2; } 
+    else if (density > 59 &&  density <= 80) { id = 1; } 
+    else  { id = 0; }
+    return colors[id];
+}
+
+L.geoJson.ajax("assets/us-states.geojson").addTo(mymap);
+
+
+function style(feature) {
+    return {
+        fillColor: setColor(feature.properties.total_plants),
+        fillOpacity: 0.4,
+        weight: 2,
+        opacity: 0.5,
+        color: 'grey',
+        dashArray: '3'
+    };
+}
+
+
+L.geoJson.ajax("assets/us-states.geojson", {
+    style: style
+}).addTo(mymap);
+
+
+var legend = L.control({position: 'topright'});
+ 
+
+legend.onAdd = function () {
+ 
+
+    var div = L.DomUtil.create('div', 'legend');
+    
+    div.innerHTML += '<b>Power Plants per State</b><br />';
+    
+    div.innerHTML += '<i style="background: ' + colors[4] + '; opacity: 0.5"></i><p>192+</p>';
+    div.innerHTML += '<i style="background: ' + colors[3] + '; opacity: 0.5"></i><p>122-191</p>';
+    div.innerHTML += '<i style="background: ' + colors[2] + '; opacity: 0.5"></i><p>81-121</p>';
+    div.innerHTML += '<i style="background: ' + colors[1] + '; opacity: 0.5"></i><p>60-80</p>';
+    div.innerHTML += '<i style="background: ' + colors[0] + '; opacity: 0.5"></i><p> 0-59</p>';
+    
+    div.innerHTML += '<hr><b>Power Plant Type<b><br />';
+    
+    div.innerHTML += '<i class="fa fa-bolt marker-color-1"></i><p>Natural Gas</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-2"></i><p>Wind</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-3"></i><p>Hydro</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-4"></i><p>Petroleum</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-5"></i><p>Biomass</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-6"></i><p>Solar</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-7"></i><p>Coal</p>';
+    div.innerHTML += '<i class="fa fa-bolt marker-color-8"></i><p>Other</p>';
+    
+    return div;
+};
+ 
+legend.addTo(mymap);
+
+L.control.scale({position: 'bottomleft'}).addTo(mymap);
+
+</script>
+</body>
+</html>
